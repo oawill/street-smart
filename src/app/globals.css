@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f7f2;
+  --surface: #ffffff;
+  --surface-2: #f0f0ea;
+  --foreground: #14151a;
+  --muted: #6b6f76;
+  --border: #e4e4dd;
+
+  --brand: #0f9d58;
+  --brand-strong: #0b7d45;
+  --brand-soft: #e3f6ec;
+  --accent: #f5a524;
+  --accent-soft: #fef3e0;
+  --danger: #e5484d;
+  --danger-soft: #fde8e8;
+  --info: #3b82f6;
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 2px rgba(20, 21, 26, 0.04), 0 8px 24px rgba(20, 21, 26, 0.06);
+}
+
+[data-theme="dark"] {
+  --background: #0b0d0c;
+  --surface: #141715;
+  --surface-2: #1b1f1d;
+  --foreground: #f4f4f0;
+  --muted: #9a9d97;
+  --border: #262a27;
+
+  --brand: #22c07a;
+  --brand-strong: #34d38e;
+  --brand-soft: #16261e;
+  --accent: #f7b52c;
+  --accent-soft: #2a2214;
+  --danger: #f46a6f;
+  --danger-soft: #2c1719;
+  --info: #60a5fa;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-sora);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes count-flash {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-count-flash {
+  animation: count-flash 0.5s ease-out;
+}
+
+@keyframes progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-progress-fill {
+  animation: progress-fill 0.5s ease-out both;
+  transform-origin: left;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}

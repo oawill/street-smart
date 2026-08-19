@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "street-smart-dev",
+      "runtimeExecutable": "C:\\ClaudeProject\\Street Smart\\.claude\\dev-server.cmd",
+      "runtimeArgs": [],
+      "port": 3000
+    }
+  ]
+}
