@@ -1,0 +1,289 @@
+// Street Smart — Partner & Affiliate Program data model.
+// SQLite does not support native enums, so status/type/role columns are
+// plain Strings; the allowed values are documented above each field and
+// enforced as TypeScript union types in src/types/partner.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Auth / players
+// ---------------------------------------------------------------------------
+
+/// role: "PLAYER" | "ADMIN"
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  username     String   @unique
+  firstName    String?
+  city         String?
+  state        String?
+  role         String   @default("PLAYER")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions          Session[]
+  gameCompletions   GameCompletion[]
+  partnerProfile    PartnerProfile?
+  referredReferral  Referral?
+  submittedApplications PartnerApplication[] @relation("ApplicantUser")
+  reviewedApplications  PartnerApplication[] @relation("ReviewedApplications")
+  approvedRewards       RewardLedger[]
+  dailyChallengeResponses DailyChallengeResponse[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+/// Minimal server-side record that a player finished a 10-round game.
+/// This is the one integration point between the (still fully client-side)
+/// game engine and the backend — used only to evaluate referral
+/// qualification. It intentionally does not re-score the game server-side;
+/// see the "Anti-cheating / fraud" notes in the final report for the
+/// limitation this implies.
+model GameCompletion {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  streetSmartIQ Int
+  completedAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Daily Challenge
+// ---------------------------------------------------------------------------
+
+/// One shared scenario per calendar day (UTC), drawn from the existing
+/// client-side scenario bank by id — no scenario content is duplicated into
+/// the database, this table just pins which one is "today's".
+model DailyChallenge {
+  id         String   @id @default(cuid())
+  date       String   @unique
+  scenarioId String
+  createdAt  DateTime @default(now())
+
+  responses DailyChallengeResponse[]
+}
+
+/// Deduplicated by device (works for guests, who never get a userId) and,
+/// for logged-in players, additionally by user — either constraint alone
+/// would miss half the cheating surface. SQLite treats each NULL as
+/// distinct in a unique index, so guests (userId null) never collide with
+/// each other on the userId constraint.
+model DailyChallengeResponse {
+  id               String   @id @default(cuid())
+  dailyChallengeId String
+  dailyChallenge   DailyChallenge @relation(fields: [dailyChallengeId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId         String
+  decisionId       String
+  respondedAt      DateTime @default(now())
+
+  @@unique([dailyChallengeId, deviceId])
+  @@unique([dailyChallengeId, userId])
+  @@index([dailyChallengeId])
+}
+
+// ---------------------------------------------------------------------------
+// Partner / affiliate program
+// ---------------------------------------------------------------------------
+
+/// partnerType: "INDIVIDUAL_AFFILIATE" | "INFLUENCER" | "SCHOOL" | "COMMUNITY" | "CORPORATE" | "OTHER"
+/// status: "PENDING_REVIEW" | "APPROVED" | "REJECTED"
+model PartnerApplication {
+  id               String    @id @default(cuid())
+  publicId         String    @unique
+  userId           String
+  user             User      @relation("ApplicantUser", fields: [userId], references: [id], onDelete: Cascade)
+  fullName         String
+  email            String
+  phone            String
+  partnerType      String
+  organizationName String?
+  city             String?
+  state            String?
+  promotionPlan    String
+  audienceSize     String?
+  website          String?
+  agreedToTerms    Boolean   @default(false)
+  status           String    @default("PENDING_REVIEW")
+  reviewedByUserId String?
+  reviewedBy       User?     @relation("ReviewedApplications", fields: [reviewedByUserId], references: [id])
+  reviewedAt       DateTime?
+  adminNotes       String?
+  createdAt        DateTime  @default(now())
+
+  resultingProfile PartnerProfile?
+
+  @@index([status])
+  @@index([userId])
+}
+
+/// partnerType: same set as PartnerApplication, plus "AFFILIATE" for self-serve enrollees
+/// status: "ACTIVE" | "SUSPENDED"
+model PartnerProfile {
+  id            String   @id @default(cuid())
+  publicId      String   @unique
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnerType   String
+  applicationId String?  @unique
+  application   PartnerApplication? @relation(fields: [applicationId], references: [id])
+  status        String   @default("ACTIVE")
+  adminNotes    String?
+  joinDate      DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  referralCode  ReferralCode?
+  referrals     Referral[]
+  rewards       RewardLedger[]
+  payoutProfile PayoutProfile?
+
+  @@index([status])
+}
+
+model ReferralCode {
+  id                    String   @id @default(cuid())
+  code                  String   @unique
+  partnerProfileId      String   @unique
+  partnerProfile        PartnerProfile @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+  isCustom              Boolean  @default(false)
+  customRequestPending  Boolean  @default(false)
+  clickCount            Int      @default(0)
+  createdAt             DateTime @default(now())
+
+  referrals Referral[]
+}
+
+/// status: "REGISTERED" | "QUALIFIED" | "REWARD_PENDING" | "REWARD_APPROVED" | "PAID" | "REJECTED" | "UNDER_REVIEW"
+model Referral {
+  id               String    @id @default(cuid())
+  publicId         String    @unique
+  referralCodeId   String
+  referralCode     ReferralCode @relation(fields: [referralCodeId], references: [id])
+  partnerProfileId String
+  partnerProfile   PartnerProfile @relation(fields: [partnerProfileId], references: [id])
+  referredUserId   String    @unique
+  referredUser     User      @relation(fields: [referredUserId], references: [id], onDelete: Cascade)
+  status           String    @default("REGISTERED")
+  source           String    @default("cookie")
+  flaggedReason    String?
+  registeredAt     DateTime  @default(now())
+  qualifiedAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  rewardLedgerEntry RewardLedger?
+
+  @@index([partnerProfileId])
+  @@index([status])
+}
+
+/// referralType: "STANDARD" | "PARTNER" | "CAMPAIGN"
+/// rewardType: "FIXED" | "PERCENTAGE" | "POINTS"
+/// qualificationRule: "FIRST_GAME_COMPLETED" (only rule implemented for MVP;
+///   field exists so future rules — 3 sessions, 7-day activity, purchase —
+///   can be added without a schema change)
+model ReferralProgram {
+  id                 String    @id @default(cuid())
+  name               String
+  referralType       String
+  rewardType         String
+  rewardAmount       Float
+  currency           String    @default("NGN")
+  qualificationRule  String    @default("FIRST_GAME_COMPLETED")
+  campaignMultiplier Float?
+  startDate          DateTime?
+  endDate            DateTime?
+  active             Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+
+  rewards RewardLedger[]
+}
+
+/// status: "PENDING" | "APPROVED" | "PAID" | "REJECTED"
+/// One row per Referral (enforced by the unique referralId), created exactly
+/// once when a referral qualifies, with the reward amount snapshotted from
+/// the ReferralProgram active at that moment — later rate changes never
+/// alter historical ledger entries.
+model RewardLedger {
+  id                String   @id @default(cuid())
+  publicId          String   @unique
+  referralId        String   @unique
+  referral          Referral @relation(fields: [referralId], references: [id])
+  partnerProfileId  String
+  partnerProfile    PartnerProfile @relation(fields: [partnerProfileId], references: [id])
+  referralProgramId String
+  referralProgram   ReferralProgram @relation(fields: [referralProgramId], references: [id])
+  amount            Float
+  currency          String
+  status            String   @default("PENDING")
+  approvedByUserId  String?
+  approvedBy        User?    @relation(fields: [approvedByUserId], references: [id])
+  approvedAt        DateTime?
+  paidAt            DateTime?
+  payoutReference   String?
+  adminNotes        String?
+  createdAt         DateTime @default(now())
+
+  @@index([partnerProfileId])
+  @@index([status])
+}
+
+model PayoutProfile {
+  id               String   @id @default(cuid())
+  partnerProfileId String   @unique
+  partnerProfile   PartnerProfile @relation(fields: [partnerProfileId], references: [id], onDelete: Cascade)
+  bankName         String
+  accountNumber    String
+  accountName      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// Seeded, admin-configurable-in-future tier thresholds. Never hard-coded
+/// into UI components — pages compute a partner's tier by counting their
+/// qualified referrals against these rows.
+model PartnerTier {
+  id                    String @id @default(cuid())
+  name                  String
+  minQualifiedReferrals Int
+  sortOrder             Int
+}
+
+model AnalyticsEvent {
+  id               String   @id @default(cuid())
+  name             String
+  userId           String?
+  partnerProfileId String?
+  referralId       String?
+  metadata         String?
+  createdAt        DateTime @default(now())
+
+  @@index([name])
+  @@index([createdAt])
+}
+
+/// Backs sequential human-readable public IDs (SS-P-000124, SS-R-000001, ...).
+model IdCounter {
+  key   String @id
+  value Int    @default(0)
+}

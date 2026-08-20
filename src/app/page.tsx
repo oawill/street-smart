@@ -1,9 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useProfileStore } from "@/store/profileStore";
 import { useGameStore } from "@/store/gameStore";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AccountMenu } from "@/components/AccountMenu";
+import { ReferralBeacon } from "@/components/ReferralBeacon";
 import { useMounted } from "@/hooks/useMounted";
 import Link from "next/link";
 
@@ -21,13 +24,19 @@ export default function LandingPage() {
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden">
+      <Suspense fallback={null}>
+        <ReferralBeacon />
+      </Suspense>
       <BackgroundDecor />
 
       <header className="relative z-10 flex items-center justify-between px-5 pt-5 sm:px-8">
         <span className="font-display text-sm font-bold tracking-[0.2em] text-muted">
           STREET SMART
         </span>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <AccountMenu />
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-10 text-center">

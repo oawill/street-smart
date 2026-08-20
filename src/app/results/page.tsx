@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
 import { ClassificationBadge } from "@/components/ClassificationBadge";
@@ -12,12 +12,27 @@ export default function ResultsPage() {
   const result = useGameStore((s) => s.result);
   const startGame = useGameStore((s) => s.startGame);
   const [copied, setCopied] = useState(false);
+  const reportedRef = useRef(false);
 
   useEffect(() => {
     if (!result) {
       router.replace("/");
     }
   }, [result, router]);
+
+  useEffect(() => {
+    // Best-effort, logged-in-only beacon: lets a referral qualify once the
+    // player finishes their first full game. Guests (no session) simply get
+    // { recorded: false } back and nothing is stored — see /api/game/complete.
+    if (!result || reportedRef.current) return;
+    reportedRef.current = true;
+    fetch("/api/game/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ streetSmartIQ: Math.round(result.streetSmartIQ) }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [result]);
 
   if (!result) {
     return (
