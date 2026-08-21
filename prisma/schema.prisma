@@ -1,7 +1,8 @@
 // Street Smart — Partner & Affiliate Program data model.
-// SQLite does not support native enums, so status/type/role columns are
-// plain Strings; the allowed values are documented above each field and
-// enforced as TypeScript union types in src/types/partner.ts.
+// Status/type/role columns are plain Strings rather than native Postgres
+// enums (this schema originally targeted SQLite, which has no enum type);
+// the allowed values are documented above each field and enforced as
+// TypeScript union types in src/types/partner.ts.
 
 generator client {
   provider = "prisma-client"
@@ -9,7 +10,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ---------------------------------------------------------------------------
